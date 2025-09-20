@@ -1,21 +1,23 @@
 ---
 title: "Homework 2 Report"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
-
 
 ## Name
 
-Please enter your name here.
+Larry Nguyen
 
 ### Setup
 
 Read in the data with `read_csv()` and store the data as an R object named `dataset`. Check the data to make sure all of the expected observations and variables are there.
 
 
-```{r}
+```{r, message=FALSE}
 ## Load the data and any necessary packages here.
-
+library(tidyverse)
+dataset <- read_csv("maacs.csv.gz")
 ```
 
 ## Part 1
@@ -33,8 +35,18 @@ NOTE: For this part, do not use any plots.
 ```{r}
 ## Write your function here
 
-```
+# Returns TRUE if FEV1 and age are positively correlated, FALSE otherwise
+is_fev1_age_corr = function(x) {
+  correlation = cor(x$fev1, x$age, use = "complete.obs")
+  if (correlation > 0) {
+    return(TRUE)
+  }
+  return(FALSE)
+}
 
+# Execute function
+is_fev1_age_corr(dataset)
+```
 
 ## Part 2
 
@@ -45,12 +57,15 @@ How much does FEV1 change for a 1-year increase in the child's age?
 ```{r}
 ## Add your code here
 
+# Fitted linear regression model with FEV1 on age
+model <- lm(data = dataset, fev1 ~ age)
+summary(model)
 ```
 
 
 Write your data analysis statement interpreting the regression model here:
 
-
+On average, FEV1 increases by approximately 0.171 liters for each 1-year increase in the child's age, indicating that lung function improves at children get older.
 
 ## Part 3
 
@@ -58,20 +73,34 @@ Develop **three** supporting premises derived from the data that support the sta
 
 NOTE: At least one supporting premise should use a plot.
 
-```{r}
-## Add your code here
+```{r, message=FALSE, warning=FALSE}
+## Supporting premises developed
 
+# Scatterplot with linear regression of FEV1 on age
+ggplot(dataset, aes(x = age, y = fev1)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Relationship Between Age and FEV1 in Children with Asthma", x = "Age (years)", y = "FEV1 (liters)") +
+  theme_minimal()
+
+# Correlation between FEV1 and age separately for male and female
+dataset %>%
+  group_by(gender) %>%
+  summarize(correlation = cor(age, fev1, use = "complete.obs"))
+
+# Fitted linear regression model including PM2.5 as a covariate
+model_pm25 <- lm(fev1 ~ age + pm25, data = dataset)
+summary(model_pm25)
 ```
 
 
 Write the three supporting premise statements here:
 
-1. 
+1. The scatterplot of FEV1 against age shows a clear positive linear trend.
 
-2. 
+2. The correlation between FEV1 and age remains strong and positive after accounting for gender differences.
 
-3. 
-
+3. Higher levels of indoor air pollution, measured by PM2.5, are associated with lower FEV1 values, but the positive effect of age on FEV1 remains significant.
 
 ## Part 4
 
@@ -86,29 +115,73 @@ For statements involving plots, instead of returning `TRUE` or `FALSE`, you func
 
 ```{r}
 ## Function for supporting premise statement 1
-
+premise_1 <- function(x) {
+  # Actual plot
+  plot1 <- ggplot(x, aes(x = age, y = fev1)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Actual Relationship Between Age and FEV1", x = "Age (years)", y = "FEV1 (liters)") +
+    theme_minimal()
+  
+  # Hypothetical plot
+  set.seed(123)
+  sim_data <- data.frame(age = seq(5, 17, length.out = 100))
+  sim_data$fev1 <- 0.17 * sim_data$age + rnorm(100, mean = 0, sd = 0.5)
+  
+  plot2 <- ggplot(sim_data, aes(x = age, y = fev1)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Hypothetical Relationship Between Age and FEV1", x = "Age (years)", y = "FEV1 (liters)") +
+    theme_minimal()
+  
+  # Print actual and hypothetical plots
+  print(plot1)
+  print(plot2)
+}
 ```
 
 
 ```{r}
 ## Function for supporting premise statement 2
-
+premise_2 <- function(x) {
+  corrs <- x %>%
+    group_by(gender) %>%
+    summarize(correlation = cor(age, fev1, use = "complete.obs"))
+  
+  # Check if correlations for both genders are positive
+  all_positive <- all(corrs$correlation > 0)
+  return(all_positive)
+}
 ```
 
 
 ```{r}
 ## Function for supporting premise statement 3
-
+premise_3 <- function(x) {
+  model <- lm(data = x, fev1 ~ age + pm25)
+  summary_model <- summary(model)
+  
+  # Check if age coefficient is positive and significant (p < 0.05)
+  age_coef <- summary_model$coefficients["age", "Estimate"]
+  age_pval <- summary_model$coefficients["age", "Pr(>|t|)"]
+  
+  return(age_coef > 0 & age_pval < 0.05)
+}
 ```
 
-Execute each of your function and show that the produce the expected output.
+Execute each of your function and show that they produce the expected output.
 
-
-
+```{r, message=FALSE, warning=FALSE}
+premise_1(dataset)
+premise_2(dataset)
+premise_3(dataset)
+```
 
 ## Part 5
 
 Describe one alternative to the primary statement "FEV1 values in children are higher in older children relative to younger children". 
+
+The observed FEV1 values may not be due to age itself, but by body size and height. Older children tend to be larger and taller than younger children, and this is a this is a confounding variable that could explain the apparent relationship between age and FEV1.
 
 Create a fault tree for the alternative outcome describing how the alternative outcome could be realized in the data even if the primary statement were true.
 
